@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remessa Online | Dashboard de Vendas & Gestão</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="https://cms-cdn-sae1.remessaonline.com.br/Symbol_f6fc626f38.svg">
+
+    <!-- Dependências de Infraestrutura -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script> <!-- Necessário para Recharts -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Banco de Dados -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Ícones e Gráficos -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+
+    <!-- Configuração Visual (Tailwind) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            main: '#2244FF',
+                            dark: '#000733',
+                            light: '#F5F5F5'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
+        
+        /* Scrollbar Elegante */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        /* Animações */
+        .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { createClient } = supabase;
+        // Extraindo componentes do Recharts do objeto global window
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } = window.Recharts || {};
+
+        // --- CONFIGURAÇÃO SUPABASE ---
+        const SUPABASE_URL = 'https://ujgnpbrreosmiujkedsa.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqZ25wYnJyZW9zbWl1amtlZHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4ODU3NDEsImV4cCI6MjA2NzQ2MTc0MX0.QY2xuq4lpZkI3Hi6gwRLi-0VUxuGoWS_LzfGtIJwRzE';
+        
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- FUNÇÕES AUXILIARES ---
+        
+        // Formata nome: "JOÃO DA SILVA" -> "João"
+        const formatFirstName = (fullName) => {
+            if (!fullName) return 'Cliente';
+            const firstName = fullName.trim().split(' ')[0].toLowerCase();
+            return firstName.charAt(0).toUpperCase() + firstName.slice(1);
+        };
+
+        // Limpa telefone para link do WhatsApp
+        const cleanPhone = (phone) => {
+            if (!phone) return '';
+            let cleaned = phone.replace(/\D/g, '');
+            if (cleaned.length <= 11) cleaned = '55' + cleaned;
+            return cleaned;
+        };
+
+        // Analisa o log do Ezsim para determinar o status visual
+        const getEsimStatus = (notes) => {
+            if (!notes || typeof notes !== 'string') return null;
+            if (notes.includes('Ezsim: emitido')) return { status: 'success', label: 'Chip Emitido', color: 'bg-green-100 text-green-800 border-green-200' };
+            if (notes.includes('Ezsim: erro')) return { status: 'error', label: 'Erro na Emissão', color: 'bg-red-100 text-red-800 border-red-200' };
+            if (notes.includes('Ezsim: pendente')) return { status: 'warning', label: 'Chip Pendente', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+            return null;
+        };
+
+        // --- COMPONENTES ---
+
+        // 1. Tela de Login
+        const LoginScreen = ({ onLogin }) => {
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (password === 'ModoSeguro2025') {
+                    onLogin(true);
+                } else {
+                    setError('Senha incorreta. Tente novamente.');
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-brand-dark">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200">
+                        <div className="flex justify-center mb-8">
+                            <img src="https://cms-cdn-sae1.remessaonline.com.br/Remessa_Online_Azul_Vertical_Principal_3ebe3d3a8d.svg" alt="Logo Remessa" className="h-12" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Acesso Administrativo</h2>
+                        <form onSubmit={handleLogin} className="space-y-5">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Senha de Acesso</label>
+                                <div className="relative">
+                                    <input 
+                                        type="password" 
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-main focus:border-transparent outline-none transition"
+                                        placeholder="Digite a senha segura..."
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                    <i data-lucide="lock" className="absolute right-3 top-3.5 w-5 h-5 text-gray-400"></i>
+                                </div>
+                            </div>
+                            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><i data-lucide="alert-circle" className="w-4 h-4"></i> {error}</div>}
+                            <button type="submit" className="w-full bg-brand-main text-white font-bold py-3.5 rounded-lg hover:bg-blue-700 transition shadow-lg transform active:scale-95 duration-200">
+                                Entrar no Painel
+                            </button>
+                        </form>
+                        <p className="text-xs text-center mt-2 text-gray-500">Powered by <a href="https://www.modosegu.com" target="_blank" class="hover:text-brand-main transition-colors">ModoSegu</a></p>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. Badge de Status Unificado
+        const StatusBadge = ({ status, type = 'system' }) => {
+            // Configuração de Status do Funil
+            const systemConfig = {
+                'cotacao_iniciada': { color: 'bg-gray-100 text-gray-600 border-gray-200', label: 'Cotação', icon: 'search' },
+                'plano_selecionado': { color: 'bg-blue-50 text-blue-600 border-blue-200', label: 'Plano', icon: 'list' },
+                'checkout_iniciado': { color: 'bg-yellow-50 text-yellow-700 border-yellow-200', label: 'Checkout', icon: 'credit-card' },
+                'pagamento_pendente': { color: 'bg-orange-50 text-orange-700 border-orange-200', label: 'Processando', icon: 'loader' },
+                'venda_concluida': { color: 'bg-green-100 text-green-700 border-green-200', label: 'Venda OK', icon: 'check-circle' },
+                'pagamento_falhou': { color: 'bg-red-50 text-red-700 border-red-200', label: 'Falha Pagto', icon: 'x-circle' },
+                
+                // Status CRM
+                'contato_feito': { color: 'bg-indigo-50 text-indigo-700 border-indigo-200', label: 'Em Negociação', icon: 'message-circle' },
+                'sem_contato': { color: 'bg-gray-50 text-gray-500 border-gray-200', label: 'Sem Resposta', icon: 'phone-off' },
+                'recusado': { color: 'bg-red-50 text-red-600 border-red-200', label: 'Perdido', icon: 'thumbs-down' },
+                'venda_recuperada': { color: 'bg-emerald-100 text-emerald-800 border-emerald-200', label: 'Recuperada', icon: 'trophy' }
+            };
+
+            // Renderização para status do eSIM (Chip)
+            if (type === 'esim') {
+                return (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider ${status.color}`} title="Status da Integração Ezsim">
+                        <i data-lucide="smartphone" className="w-3 h-3"></i> {status.label}
+                    </span>
+                );
+            }
+
+            // Renderização Padrão
+            const current = systemConfig[status] || { color: 'bg-gray-100 text-gray-500 border-gray-200', label: status, icon: 'help-circle' };
+
+            return (
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium ${current.color}`}>
+                    <i data-lucide={current.icon} className="w-3 h-3"></i>
+                    {current.label}
+                </span>
+            );
+        };
+
+        // 3. Modal de Detalhes & CRM
+        const DetailModal = ({ lead, onClose, onUpdate }) => {
+            if (!lead) return null;
+
+            const [recoveryStatus, setRecoveryStatus] = useState(lead.recovery_status || lead.status);
+            const [recoveryNotes, setRecoveryNotes] = useState(lead.recovery_notes || '');
+            const [isSaving, setIsSaving] = useState(false);
+            
+            // Extração de dados
+            const esimInfo = getEsimStatus(lead.recovery_notes);
+            const contactPhone = lead.contato_emergencia_telefone || (lead.passageiros_info ? JSON.parse(lead.passageiros_info)[0]?.telefone : null);
+            const firstName = formatFirstName(lead.nome_usuario);
+            const cleanPhoneNumber = cleanPhone(contactPhone);
+
+            // Scripts de Venda WhatsApp
+            const scripts = [
+                { title: "Ajuda na Cotação", text: `Olá ${firstName}, vi que você começou uma cotação de seguro viagem na Remessa Online. Ficou com alguma dúvida sobre os planos?` },
+                { title: "Desconto Exclusivo", text: `Oi ${firstName}, tudo bem? Sou especialista da Remessa. Vi que seu seguro ficou pendente. Posso te ajudar a garantir seus 20% de desconto agora?` },
+                { title: "Urgência / Proteção", text: `${firstName}, não viaje sem proteção! Vi que você simulou o seguro Coris. Quer ajuda para escolher o melhor plano e evitar imprevistos?` },
+                { title: "Benefício Chip Grátis", text: `Olá ${firstName}! Aqui é da Remessa Online. O seu desconto exclusivo e o chip de internet grátis ainda estão disponíveis. Vamos finalizar?` },
+                { title: "Problema no Pagamento", text: `Oi ${firstName}, vi que você teve dificuldade no pagamento. O sistema recusou seu cartão? Posso tentar emitir um boleto/pix pra você manter o preço.` }
+            ];
+
+            const handleWhatsAppClick = (scriptText) => {
+                if (!cleanPhoneNumber) { alert("Telefone não disponível."); return; }
+                const url = `https://wa.me/${cleanPhoneNumber}?text=${encodeURIComponent(scriptText)}`;
+                window.open(url, '_blank');
+                if(recoveryStatus === lead.status) setRecoveryStatus('contato_feito'); // Sugere mudança de status
+            };
+
+            const handleSave = async () => {
+                setIsSaving(true);
+                try {
+                    const updatePayload = {
+                        status: recoveryStatus === 'venda_recuperada' ? 'venda_concluida' : recoveryStatus,
+                        recovery_status: recoveryStatus,
+                        recovery_notes: recoveryNotes 
+                    };
+                    const { error } = await supabaseClient.from('remessaonlinesioux_leads').update(updatePayload).eq('id', lead.id);
+                    if (error) throw error;
+                    
+                    // Feedback visual rápido
+                    const btn = document.getElementById('save-btn');
+                    if(btn) { btn.textContent = 'Salvo!'; btn.classList.add('bg-green-600'); }
+                    
+                    setTimeout(() => {
+                        if (onUpdate) onUpdate();
+                        onClose();
+                    }, 800);
+                } catch (e) { alert("Erro: " + e.message); } finally { setIsSaving(false); }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-end z-50 transition-opacity duration-300" onClick={onClose}>
+                    <div className="bg-white h-full w-full max-w-2xl shadow-2xl overflow-y-auto flex flex-col animate-slide-in" onClick={e => e.stopPropagation()}>
+                        
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-brand-main text-white sticky top-0 z-20 shadow-md">
+                            <div>
+                                <h3 className="text-xl font-bold flex items-center gap-2">
+                                    Gestão do Lead #{lead.id}
+                                </h3>
+                                <p className="text-sm opacity-80 text-blue-100">{new Date(lead.created_at).toLocaleString('pt-BR')}</p>
+                            </div>
+                            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition"><i data-lucide="x" className="w-6 h-6 text-white"></i></button>
+                        </div>
+                        
+                        <div className="p-8 space-y-8 flex-1">
+                            
+                            {/* Status Header */}
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                <div>
+                                    <p className="text-xs text-gray-500 font-bold uppercase mb-1">Etapa Atual</p>
+                                    <StatusBadge status={lead.status} />
+                                </div>
+                                {esimInfo && (
+                                    <div className="text-right">
+                                        <p className="text-xs text-gray-500 font-bold uppercase mb-1">Chip Internacional</p>
+                                        <StatusBadge status={esimInfo} type="esim" />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* CRM Action Center */}
+                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 shadow-sm">
+                                <div className="flex items-center gap-3 mb-5">
+                                    <div className="p-2 bg-brand-main text-white rounded-lg shadow-sm"><i data-lucide="message-circle" className="w-5 h-5"></i></div>
+                                    <h4 className="text-lg font-bold text-gray-800">Ações de Recuperação</h4>
+                                </div>
+                                
+                                <div className="space-y-5">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                                            <i data-lucide="zap" className="w-3 h-3"></i> Scripts de Abordagem Rápida
+                                        </label>
+                                        <div className="grid gap-2">
+                                            {scripts.map((script, idx) => (
+                                                <button key={idx} onClick={() => handleWhatsAppClick(script.text)} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-brand-main hover:shadow-md transition text-left group">
+                                                    <div><p className="font-semibold text-gray-700 text-sm group-hover:text-brand-main">{script.title}</p><p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{script.text}</p></div>
+                                                    <i data-lucide="send" className="w-4 h-4 text-gray-300 group-hover:text-green-500 transition-colors"></i>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-blue-200/50">
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Novo Status</label>
+                                            <div className="relative">
+                                                <select value={recoveryStatus} onChange={(e) => setRecoveryStatus(e.target.value)} className="w-full p-2.5 pl-9 border border-gray-300 rounded-lg text-sm outline-none focus:border-brand-main appearance-none bg-white">
+                                                    <option value={lead.status}>Manter Atual</option>
+                                                    <option value="contato_feito">Conversando</option>
+                                                    <option value="sem_contato">Sem Resposta</option>
+                                                    <option value="recusado">Perdido / Recusado</option>
+                                                    <option value="venda_recuperada">Venda Recuperada!</option>
+                                                </select>
+                                                <i data-lucide="refresh-cw" className="absolute left-3 top-3 w-4 h-4 text-gray-400"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Anotações</label>
+                                            <input type="text" value={recoveryNotes} onChange={(e) => setRecoveryNotes(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-brand-main" placeholder="Motivo ou próximo passo..." />
+                                        </div>
+                                    </div>
+                                    <button id="save-btn" onClick={handleSave} disabled={isSaving} className="w-full py-3.5 bg-brand-main text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 mt-2">
+                                        {isSaving ? 'Salvando...' : 'Salvar Histórico'} <i data-lucide="save" className="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Dados do Cliente & Viagem */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Cliente</label>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-lg">
+                                                {firstName.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="text-lg font-bold text-gray-800">{lead.nome_usuario || 'Visitante'}</p>
+                                                <p className="text-xs text-gray-500">{lead.email_usuario}</p>
+                                            </div>
+                                        </div>
+                                        <a href={`https://wa.me/${cleanPhoneNumber}`} target="_blank" className="text-sm text-green-600 font-medium flex items-center gap-1 mt-2 hover:underline">
+                                            <i data-lucide="phone" className="w-3 h-3"></i> {contactPhone || 'Sem telefone'}
+                                        </a>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Detalhes da Viagem</label>
+                                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-2">
+                                            <div className="flex justify-between text-sm"><span className="text-gray-500">Destino:</span> <span className="font-medium text-gray-800">{lead.destino_cotacao}</span></div>
+                                            <div className="flex justify-between text-sm"><span className="text-gray-500">Duração:</span> <span className="font-medium text-gray-800">{lead.dias_cotacao} dias</span></div>
+                                            <div className="flex justify-between text-sm"><span className="text-gray-500">Passageiros:</span> <span className="font-medium text-gray-800">{lead.passageiros_cotacao}</span></div>
+                                            <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between items-center">
+                                                <span className="text-gray-500 text-xs">Valor Cotação:</span>
+                                                <span className="font-bold text-brand-main text-lg">
+                                                    {lead.valor_final_brl ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.valor_final_brl) : '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Logs Técnicos */}
+                            <div className="border-t border-gray-100 pt-6">
+                                <h4 className="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
+                                    <i data-lucide="terminal" className="w-4 h-4 text-gray-400"></i> Logs do Sistema
+                                </h4>
+                                <div className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs font-mono overflow-x-auto max-h-48 overflow-y-auto shadow-inner">
+                                    <p><span className="text-gray-500">ID:</span> {lead.id}</p>
+                                    <p><span className="text-gray-500">Criado em:</span> {lead.created_at}</p>
+                                    <p><span className="text-gray-500">Plano ID:</span> {lead.plano_escolhido}</p>
+                                    <p><span className="text-gray-500">Voucher Coris:</span> <span className="text-green-400">{lead.coris_voucher || 'Pendente'}</span></p>
+                                    <p><span className="text-gray-500">Stripe ID:</span> {lead.stripe_payment_intent_id || 'Pendente'}</p>
+                                    <div className="mt-2 pt-2 border-t border-gray-800">
+                                        <p className="text-gray-400 mb-1">// Dados Passageiros (JSON)</p>
+                                        <pre className="whitespace-pre-wrap break-all text-gray-500">{lead.passageiros_info || 'null'}</pre>
+                                    </div>
+                                    {lead.last_error_message && (
+                                        <p className="mt-2 text-red-400 border-t border-gray-800 pt-2">
+                                            <span className="text-red-500 font-bold">ERRO:</span> {lead.last_error_message}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 4. Dashboard Principal
+        const Dashboard = () => {
+            const [leads, setLeads] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [selectedLead, setSelectedLead] = useState(null);
+            
+            // Filtros
+            const [filterStatus, setFilterStatus] = useState('todos');
+            const [searchTerm, setSearchTerm] = useState('');
+            const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+            const fetchData = async () => {
+                setLoading(true);
+                const { data } = await supabaseClient.from('remessaonlinesioux_leads').select('*').order('created_at', { ascending: false });
+                setLeads(data || []);
+                setLoading(false);
+            };
+
+            useEffect(() => {
+                fetchData();
+                const sub = supabaseClient.channel('realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'remessaonlinesioux_leads' }, () => fetchData()).subscribe();
+                return () => supabaseClient.removeChannel(sub);
+            }, []);
+
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+
+            // Lógica de Filtros
+            const filteredLeads = useMemo(() => {
+                return leads.filter(lead => {
+                    const matchesSearch = (lead.nome_usuario?.toLowerCase().includes(searchTerm.toLowerCase())) || 
+                                          (lead.email_usuario?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                                          (lead.id?.toString().includes(searchTerm));
+                    
+                    const matchesStatus = filterStatus === 'todos' || lead.status === filterStatus || lead.recovery_status === filterStatus;
+                    
+                    let matchesDate = true;
+                    if (dateRange.start) {
+                        const leadDate = new Date(lead.created_at).setHours(0,0,0,0);
+                        const startDate = new Date(dateRange.start).setHours(0,0,0,0);
+                        if (leadDate < startDate) matchesDate = false;
+                    }
+                    if (dateRange.end) {
+                        const leadDate = new Date(lead.created_at).setHours(0,0,0,0);
+                        const endDate = new Date(dateRange.end).setHours(0,0,0,0);
+                        if (leadDate > endDate) matchesDate = false;
+                    }
+                    return matchesSearch && matchesStatus && matchesDate;
+                });
+            }, [leads, filterStatus, searchTerm, dateRange]);
+
+            // KPIs
+            const stats = useMemo(() => {
+                const total = filteredLeads.length;
+                const sales = filteredLeads.filter(l => l.status === 'venda_concluida').length;
+                const revenue = filteredLeads.filter(l => l.status === 'venda_concluida').reduce((acc, curr) => acc + (curr.valor_final_brl || 0), 0);
+                const conversion = total > 0 ? ((sales / total) * 100).toFixed(1) : 0;
+                const funnelData = [
+                    { name: 'Cotação', value: filteredLeads.filter(l => l.status === 'cotacao_iniciada').length },
+                    { name: 'Plano', value: filteredLeads.filter(l => l.status === 'plano_selecionado').length },
+                    { name: 'Checkout', value: filteredLeads.filter(l => l.status === 'checkout_iniciado').length },
+                    { name: 'Venda', value: sales }
+                ];
+                return { total, sales, revenue, conversion, funnelData };
+            }, [filteredLeads]);
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    <header className="bg-brand-dark text-white shadow-lg sticky top-0 z-40">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-white p-1 rounded"><img src="https://cms-cdn-sae1.remessaonline.com.br/Symbol_f6fc626f38.svg" alt="Logo" className="h-6 w-6" /></div>
+                                <span className="font-bold text-lg tracking-wide hidden md:inline">Painel de Vendas</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Online
+                                </span>
+                                <div className="w-8 h-8 rounded-full bg-brand-main flex items-center justify-center text-sm font-bold text-white">A</div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+                        {/* Filtros */}
+                        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center justify-between">
+                            <div className="flex items-center gap-2 text-gray-500 w-full lg:w-auto"><i data-lucide="filter" className="w-4 h-4"></i><span className="text-sm font-semibold uppercase">Filtros</span></div>
+                            <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
+                                <div className="relative flex-1 md:w-64"><i data-lucide="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i><input type="text" placeholder="Buscar nome, email, ID..." className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-brand-main w-full transition" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                                <div className="flex gap-2">
+                                    <input type="date" className="p-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 outline-none focus:border-brand-main transition" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} />
+                                    <span className="self-center text-gray-400">-</span>
+                                    <input type="date" className="p-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 outline-none focus:border-brand-main transition" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} />
+                                </div>
+                                <select className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none bg-white focus:border-brand-main transition" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                                    <option value="todos">Todos os Status</option>
+                                    <optgroup label="Etapas">
+                                        <option value="venda_concluida">Vendas</option>
+                                        <option value="pagamento_pendente">Processando</option>
+                                        <option value="checkout_iniciado">Checkout Aberto</option>
+                                        <option value="cotacao_iniciada">Cotações</option>
+                                    </optgroup>
+                                </select>
+                                {(searchTerm || dateRange.start || dateRange.end || filterStatus !== 'todos') && (<button onClick={() => { setSearchTerm(''); setDateRange({start:'', end:''}); setFilterStatus('todos'); }} className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg text-sm transition">Limpar</button>)}
+                            </div>
+                        </div>
+                        
+                        {/* KPIs */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition"><p className="text-sm text-gray-500 font-medium">Total Leads</p><p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p><div className="absolute right-4 top-6 p-3 bg-blue-50 rounded-lg text-brand-main"><i data-lucide="users" className="w-6 h-6"></i></div></div>
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition"><p className="text-sm text-gray-500 font-medium">Vendas Realizadas</p><p className="text-3xl font-bold text-gray-800 mt-1">{stats.sales}</p><div className="absolute right-4 top-6 p-3 bg-green-50 rounded-lg text-green-600"><i data-lucide="shopping-cart" className="w-6 h-6"></i></div></div>
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition"><p className="text-sm text-gray-500 font-medium">Receita Gerada</p><p className="text-3xl font-bold text-gray-800 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.revenue)}</p><div className="absolute right-4 top-6 p-3 bg-yellow-50 rounded-lg text-yellow-600"><i data-lucide="dollar-sign" className="w-6 h-6"></i></div></div>
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition"><p className="text-sm text-gray-500 font-medium">Taxa Conversão</p><p className="text-3xl font-bold text-gray-800 mt-1">{stats.conversion}%</p><div className="absolute right-4 top-6 p-3 bg-purple-50 rounded-lg text-purple-600"><i data-lucide="trending-up" className="w-6 h-6"></i></div></div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Gráfico */}
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
+                                <h3 className="text-lg font-bold text-gray-800 mb-6">Funil de Conversão</h3>
+                                <div className="h-72 w-full">
+                                    {window.Recharts ? (<ResponsiveContainer width="100%" height="100%"><BarChart data={stats.funnelData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" /><YAxis dataKey="name" type="category" width={80} tick={{fontSize: 12}} /><Tooltip cursor={{fill: '#f9fafb'}} /><Bar dataKey="value" fill="#2244FF" radius={[0, 4, 4, 0]} barSize={32}><Cell fill="#94a3b8" /><Cell fill="#60a5fa" /><Cell fill="#fbbf24" /><Cell fill="#22c55e" /></Bar></BarChart></ResponsiveContainer>) : (<div className="flex items-center justify-center h-full text-gray-400 animate-pulse">Carregando gráfico...</div>)}
+                                </div>
+                            </div>
+                            {/* Status Sistêmico */}
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Status da Operação</h3>
+                                <div className="space-y-3 flex-1">
+                                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100"><span className="text-sm text-gray-600 flex items-center gap-2"><i data-lucide="database" className="w-4 h-4 text-gray-400"></i> BD</span><span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">ONLINE</span></div>
+                                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100"><span className="text-sm text-gray-600 flex items-center gap-2"><i data-lucide="credit-card" className="w-4 h-4 text-gray-400"></i> Gateway</span><span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">STRIPE</span></div>
+                                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100"><span className="text-sm text-gray-600 flex items-center gap-2"><i data-lucide="shield" className="w-4 h-4 text-gray-400"></i> Seguradora</span><span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold">SIMULADO</span></div>
+                                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100"><span className="text-sm text-gray-600 flex items-center gap-2"><i data-lucide="smartphone" className="w-4 h-4 text-gray-400"></i> eSIM API</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold">AUTOMÁTICO</span></div>
+                                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100"><span className="text-sm text-gray-600 flex items-center gap-2"><i data-lucide="refresh-cw" className="w-4 h-4 text-gray-400"></i> Atualização via BD Realtime</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tabela */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead><tr className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200"><th className="p-5 font-semibold">Data/Hora</th><th className="p-5 font-semibold">Cliente / Email</th><th className="p-5 font-semibold">Valor</th><th className="p-5 font-semibold">Status</th><th className="p-5 text-right">Ação</th></tr></thead>
+                                    <tbody className="divide-y divide-gray-100 text-sm">
+                                        {loading ? (<tr><td colSpan="5" className="p-12 text-center text-gray-500 animate-pulse">Carregando leads...</td></tr>) : filteredLeads.length === 0 ? (<tr><td colSpan="5" className="p-12 text-center text-gray-400">Nenhum registro encontrado.</td></tr>) : filteredLeads.map((lead) => {
+                                            const esim = getEsimStatus(lead.recovery_notes);
+                                            return (
+                                                <tr key={lead.id} className="hover:bg-blue-50/30 transition cursor-pointer group" onClick={() => setSelectedLead(lead)}>
+                                                    <td className="p-5 text-gray-600 whitespace-nowrap">{new Date(lead.created_at).toLocaleDateString('pt-BR')} <span className="text-xs text-gray-400 block">{new Date(lead.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span></td>
+                                                    <td className="p-5"><p className="font-semibold text-gray-800">{lead.nome_usuario || 'Visitante'}</p><p className="text-xs text-gray-500">{lead.email_usuario || '-'}</p></td>
+                                                    <td className="p-5 font-medium text-gray-700">{lead.valor_final_brl ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.valor_final_brl) : '-'}</td>
+                                                    <td className="p-5"><div className="flex flex-col gap-1 items-start"><StatusBadge status={lead.recovery_status || lead.status} /> {esim && <StatusBadge status={esim} type="esim" />}</div></td>
+                                                    <td className="p-5 text-right"><button className="text-gray-400 hover:text-brand-main hover:bg-blue-100 p-2 rounded-full transition"><i data-lucide="chevron-right" className="w-5 h-5"></i></button></td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="p-4 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex justify-between items-center">
+                                <span>{filteredLeads.length} registros encontrados</span>
+                                <span>Atualização via BD Realtime</span>
+                            </div>
+                        </div>
+                    </main>
+                    {selectedLead && <DetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} onUpdate={fetchData} />}
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('dashboard_auth') === 'true');
+            const handleLogin = () => { localStorage.setItem('dashboard_auth', 'true'); setIsLoggedIn(true); };
+            return isLoggedIn ? <Dashboard /> : <LoginScreen onLogin={handleLogin} />;
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
