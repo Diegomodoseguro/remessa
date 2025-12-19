@@ -1,0 +1,13 @@
+{
+  "name": "coris-seguro-backend",
+  "version": "1.0.0",
+  "description": "Backend functions for processing Coris/Stripe/ModoSeguro",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
+    "node-fetch": "^2.7.0",
+    "stripe": "^15.10.0"
+  }
+}

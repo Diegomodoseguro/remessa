@@ -1,0 +1,16 @@
+[build]
+  # Aqui estamos dizendo para o Netlify: "Não tente instalar nada complicado."
+  # O comando 'echo' apenas imprime uma frase na tela e termina com sucesso.
+  command = "echo 'Site estático - Build pulado'"
+  
+  # Pasta onde os arquivos .js das funções (backend) estão
+  functions = "functions"
+  
+  # Pasta onde está o site (raiz)
+  publish = "."
+
+# Configuração técnica para as APIs funcionarem
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
