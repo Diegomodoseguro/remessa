@@ -1,0 +1,13 @@
+[build]
+  # Comando para instalar as dependências (Stripe, Supabase, etc)
+  command = "npm install"
+  # Pasta onde os arquivos .js das funções estão (agora na raiz 'functions')
+  functions = "functions"
+  # Pasta onde está o index.html (raiz)
+  publish = "."
+
+# Redirecionamento para facilitar chamadas (opcional, mas mantido para compatibilidade)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
