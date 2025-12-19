@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seguro Viagem Coris | Parceria Remessa Online</title>
+    
+    <!-- CORREÇÃO CORS: Favicon em Base64 (Ícone Azul da Marca) -->
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzIyNDRGRiIvPjxwYXRoIGQ9Ik0zMCA1MCBMNTAgNzAgTDcwIDMwIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEwIiBmaWxsPSJub25lIi8+PC9zdmc+">
+    
+    <!-- Dependências -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    
+    <!-- Flatpickr (Calendário) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+    
+    <!-- Máscaras -->
+    <script src="https://unpkg.com/imask"></script>
+    
+    <!-- Fontes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; color: #333; line-height: 1.5; background-color: #fff; }
+        
+        :root {
+            --color-remessa-main: #2244FF; /* Azul Institucional */
+            --color-remessa-dark: #00158A;
+            --color-remessa-bg-dark: #000733;
+            --color-text-title: #000733;
+            --color-border: #ced1d5;
+            --color-bg-light: #f1f2f3;
+        }
+
+        /* Botões e Interatividade */
+        .btn { border-radius: 32px; padding: 12px 24px; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-cta { background-color: var(--color-remessa-main); color: white; border: 1px solid var(--color-remessa-main); }
+        .btn-cta:hover:not(:disabled) { background-color: var(--color-remessa-dark); border-color: var(--color-remessa-dark); }
+        
+        .btn-secondary { background-color: transparent; color: var(--color-remessa-main); border: 1px solid var(--color-remessa-main); }
+        .btn-secondary:hover { background-color: rgba(34, 68, 255, 0.05); }
+        
+        header { position: sticky; top: 0; z-index: 50; background: white; box-shadow: 0 3px 14px rgba(0,0,0,0.08); min-height: 80px; display: flex; align-items: center;}
+        
+        /* Formulários */
+        .form-input, .form-select { border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 16px; width: 100%; background: var(--color-bg-light); color: var(--color-text-title); height: 48px; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus { border-color: var(--color-remessa-main); background: white; }
+        .flatpickr-input[readonly] { background-color: var(--color-bg-light); cursor: pointer; }
+        
+        /* Cards e Elementos */
+        .benefit-pdf-card { padding: 1.5rem; border: 1px solid #E0E0E6; border-radius: 12px; height: 100%; text-align: left; background: white; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .benefit-pdf-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); border-color: var(--color-remessa-main); }
+        
+        .plan-card { border: 1px solid var(--color-border); border-radius: 12px; transition: all 0.2s; background: white; }
+        .plan-card:hover { border-color: var(--color-remessa-main); box-shadow: 0 4px 18px rgba(0,0,0,0.08); }
+        
+        .loader { border: 3px solid #e0e0e0; border-top: 3px solid var(--color-remessa-main); border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .modal { transition: opacity 0.3s; }
+        .animate-on-scroll { opacity: 0; transform: translateY(20px); transition: 0.6s; }
+        .animate-on-scroll.is-visible { opacity: 1; transform: translateY(0); }
+        
+        /* Seção Hero Geral */
+        .horizontal-section { background-color: var(--color-remessa-main); color: white; padding: 80px 0; }
+        
+        .StripeElement { background: white; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; }
+        
+        /* Grid Checkout */
+        .checkout-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px; }
+        .checkout-label { color: #676c72; font-weight: 500; }
+        .checkout-value { color: #000733; font-weight: 600; text-align: right; }
+        
+        .step-card { position: relative; padding-left: 24px; border-left: 2px solid var(--color-remessa-main); }
+    </style>
+</head>
+<body class="text-gray-800 font-inter">
+
+    <!-- Header -->
+    <header>
+        <nav class="container mx-auto px-4 max-w-7xl flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <a href="https://www.remessaonline.com.br/" target="_blank">
+                    <img src="https://cms-cdn-sae1.remessaonline.com.br/Remessa_Online_Azul_Vertical_Principal_3ebe3d3a8d.svg" alt="Remessa" class="h-8 md:h-10">
+                </a>
+                <div class="h-8 w-px bg-gray-300 mx-2"></div>
+                <div class="flex flex-col justify-center">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-none mb-1">Parceria</span>
+                    <img src="https://emissoes.coris.com.br/img/logo_emisoes_2024.jpg" alt="Coris" class="h-6 md:h-8 object-contain">
+                </div>
+            </div>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="#cotacao" class="font-medium hover:text-blue-600 transition-colors">Cotação</a>
+                <a href="#beneficios" class="font-medium hover:text-blue-600 transition-colors">Benefícios</a>
+                <a href="#faq" class="font-medium hover:text-blue-600 transition-colors">FAQ</a>
+                <a href="https://www.remessaonline.com.br/" class="btn btn-secondary text-sm px-6 py-2">Acessar Conta</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="horizontal-section relative overflow-hidden">
+            <div class="container mx-auto px-4 max-w-7xl relative z-10">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <div class="text-left animate-on-scroll">
+                        <div class="inline-block bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold text-sm px-4 py-1.5 rounded-full mb-6">
+                            Exclusivo Cliente Remessa Online
+                        </div>
+                        <h1 class="text-4xl lg:text-6xl font-bold mb-6 leading-tight text-white">
+                            Confie em quem prioriza você
+                        </h1>
+                        <p class="text-lg text-white/90 font-light mb-10 max-w-lg">
+                            Seguro Viagem Coris com <strong>15% OFF</strong> e <strong>2GB de internet grátis</strong> (eSIM). A segurança que você já conhece, agora protegendo sua viagem.
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <a href="#cotacao" class="btn bg-white text-[#2244FF] text-lg px-8 py-3 shadow-lg hover:bg-gray-100 text-center">
+                                Cotar com 15% OFF
+                            </a>
+                            <a href="#beneficios" class="btn btn-secondary text-white border-white hover:bg-white hover:text-[#2244FF] px-8 py-3 text-center">
+                                Ver benefícios
+                            </a>
+                        </div>
+                    </div>
+                    <div class="relative h-full flex justify-center md:justify-end animate-on-scroll">
+                        <!-- Imagem Oficial do Rubinho App -->
+                        <img src="https://cms-cdn-sae1.remessaonline.com.br/Rubinho_App_Remessa_Online_0ac6cabd58.webp" alt="Rubinho Barrichello" class="w-full max-w-[500px] drop-shadow-2xl object-contain rounded-3xl" onerror="this.onerror=null; this.src='https://placehold.co/500x600/2244FF/FFFFFF?text=Rubinho';">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cotação -->
+        <section id="cotacao" class="py-20 bg-[#f9fafb] relative -mt-10 z-20">
+             <div class="container mx-auto px-4 max-w-4xl">
+                 <div class="bg-white p-8 md:p-12 rounded-2xl shadow-xl border border-gray-100 animate-on-scroll">
+                     <div class="text-center mb-10">
+                        <h2 class="text-3xl font-bold text-[#000733] mb-3">Simule seu Seguro Viagem</h2>
+                        <p class="text-[#676c72]">Preencha os dados abaixo para visualizar os planos com desconto aplicado.</p>
+                     </div>
+                     <form id="quote-form" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Seu Nome</label>
+                                <input type="text" id="user-name-quote" class="form-input" placeholder="Nome completo" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Seu E-mail</label>
+                                <input type="email" id="user-email-quote" class="form-input" placeholder="seu@email.com" required>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Destino Principal</label>
+                                <select id="destination" class="form-select" required>
+                                    <option value="" disabled selected>Selecione o destino</option>
+                                    <option value="1">América Latina</option>
+                                    <option value="2">Brasil</option>
+                                    <option value="4">Mundo (Exceto EUA)</option>
+                                    <option value="5">Mundo (Incluindo EUA)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Motivo da Viagem</label>
+                                <select id="trip-category" class="form-select" required>
+                                    <option value="1" selected>Lazer / Negócios</option>
+                                    <option value="2">Estudos / Intercâmbio</option>
+                                    <option value="3">Multiviagens (Anual)</option>
+                                    <option value="5">Receptivo (Incoming)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Data de Ida</label>
+                                <input type="text" id="departure-date" class="form-input flatpickr-input" placeholder="DD/MM/AAAA" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Data de Volta</label>
+                                <input type="text" id="return-date" class="form-input flatpickr-input" placeholder="DD/MM/AAAA" readonly>
+                            </div>
+                        </div>
+                        <p id="trip-duration" class="text-sm text-center text-gray-600 font-medium hidden bg-blue-50 py-3 rounded-lg border border-blue-100">Duração da viagem: <span id="duration-days" class="font-bold text-blue-600">0</span> dias</p>
+                        
+                        <!-- Seção Passageiros e Idades -->
+                        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                            <label class="block text-sm font-semibold mb-3 text-gray-700">Passageiros</label>
+                            <div class="relative mb-4">
+                                <input type="number" id="passengers" min="1" max="6" value="1" class="form-input pr-12" required>
+                                <span class="absolute right-4 top-3 text-gray-500 text-sm pointer-events-none font-medium">Pessoas</span>
+                            </div>
+
+                             <div id="ages-container" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <!-- Inputs de idade gerados via JS -->
+                                <div>
+                                    <label class="text-xs text-gray-500 font-medium mb-1 block">Idade Pax 1</label>
+                                    <input type="number" class="form-input h-10 text-sm passenger-age" min="0" max="99" placeholder="Anos" required data-pax="1">
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2 italic">*Passageiros acima de 85 anos não elegíveis.</p>
+                        </div>
+
+                        <div id="quote-feedback" class="text-center text-sm hidden p-3 rounded bg-red-50 text-red-600 border border-red-200"></div>
+                        <div class="pt-6 text-center">
+                            <button type="submit" id="get-quote-btn" class="btn btn-cta text-lg w-full md:w-auto min-w-[280px] py-4 shadow-lg hover:-translate-y-0.5 transition-transform">
+                                <span id="quote-btn-text">Ver Planos e Preços</span>
+                                <div id="quote-btn-loader" class="loader ml-3 hidden border-t-white"></div>
+                            </button>
+                        </div>
+                     </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Resultados -->
+        <section id="quote-results" class="py-16 bg-white hidden">
+             <div class="container mx-auto px-4 max-w-6xl">
+                 <h2 class="text-3xl font-bold text-[#000733] text-center mb-4">Planos Recomendados para Você</h2>
+                 <p class="text-center text-gray-500 mb-12 max-w-2xl mx-auto">O desconto de 15% já está aplicado nos valores abaixo.</p>
+                 <div id="plans-container" class="grid grid-cols-1 md:grid-cols-3 gap-8"></div>
+            </div>
+        </section>
+
+        <!-- Benefícios -->
+        <section id="beneficios" class="py-20 bg-white text-center">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <h2 class="text-3xl md:text-4xl font-bold text-[#000733] mb-12 animate-on-scroll">Por que escolher a Coris?</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                     <div class="benefit-pdf-card animate-on-scroll group">
+                        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4 text-[#2244FF]"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></div>
+                        <h3 class="text-lg font-bold mb-2 text-[#000733]">Cobertura Completa</h3><p class="text-sm text-gray-500">Assistência médica, extravio de bagagem e cancelamento.</p>
+                    </div>
+                     <div class="benefit-pdf-card animate-on-scroll group">
+                       <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4 text-[#2244FF]"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></div>
+                        <h3 class="text-lg font-bold mb-2 text-[#000733]">Atendimento 24h</h3><p class="text-sm text-gray-500">Central própria com atendimento em português.</p>
+                    </div>
+                     <div class="benefit-pdf-card animate-on-scroll group">
+                        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4 text-[#2244FF]"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                        <h3 class="text-lg font-bold mb-2 text-[#000733]">15% OFF Real</h3><p class="text-sm text-gray-500">Desconto exclusivo para clientes Remessa Online.</p>
+                    </div>
+                     <div class="benefit-pdf-card animate-on-scroll group">
+                         <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4 text-[#2244FF]"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.404 12.196a9.75 9.75 0 0113.192 0M2.52 9.354a14.25 14.25 0 0118.96 0M12 18.75a.75.75 0 100-1.5.75.75 0 000 1.5z" /></svg></div>
+                        <h3 class="text-lg font-bold mb-2 text-[#000733]">+2GB Internet</h3><p class="text-sm text-gray-500">Chip eSIM internacional grátis para sua viagem.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="faq" class="py-20 bg-gray-50 border-t border-gray-200">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                    <div>
+                         <h2 class="text-3xl font-bold text-[#000733] mb-6">Processo Simplificado</h2>
+                         <div class="space-y-6">
+                            <div class="step-card">
+                                <h4 class="font-bold text-lg text-[#000733] mb-1">1. Faça sua cotação</h4>
+                                <p class="text-gray-600 text-sm">Informe o destino, idades e o número de passageiros no formulário.</p>
+                            </div>
+                            <div class="step-card">
+                                <h4 class="font-bold text-lg text-[#000733] mb-1">2. Escolha o plano</h4>
+                                <p class="text-gray-600 text-sm">Compare as opções com desconto e escolha a ideal.</p>
+                            </div>
+                            <div class="step-card">
+                                <h4 class="font-bold text-lg text-[#000733] mb-1">3. Pagamento Seguro</h4>
+                                <p class="text-gray-600 text-sm">Pague com cartão de crédito em ambiente seguro.</p>
+                            </div>
+                            <div class="step-card">
+                                <h4 class="font-bold text-lg text-[#000733] mb-1">4. Viaje Protegido</h4>
+                                <p class="text-gray-600 text-sm">Sua apólice e o QR Code do eSIM chegam instantaneamente no seu e-mail.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold text-[#000733] mb-6">Dúvidas Frequentes</h2>
+                        <div class="space-y-4">
+                            <div class="bg-white p-5 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-gray-800 text-sm">Existe limite de idade?</h4>
+                                <p class="text-sm text-gray-600 mt-1">Sim. O sistema aceita passageiros até 85 anos. Acima de 85 anos não há cobertura disponível neste canal.</p>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-gray-800 text-sm">Como funciona o agravo por idade?</h4>
+                                <p class="text-sm text-gray-600 mt-1">Passageiros até 65 anos pagam tarifa base. De 66-70 há um pequeno acréscimo, e assim por diante. O cálculo é automático.</p>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-gray-800 text-sm">O seguro cobre COVID-19?</h4>
+                                <p class="text-sm text-gray-600 mt-1">Sim! Todos os nossos planos possuem cobertura para despesas médicas por COVID-19.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <footer class="bg-[#292929] text-gray-400 text-sm pt-12 pb-8 border-t border-gray-800">
+        <div class="bg-[#2244FF] py-8 px-4 -mt-12 mb-12">
+            <div class="container mx-auto max-w-7xl flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex items-center gap-4">
+                    <img src="https://cms-cdn-sae1.remessaonline.com.br/logo_remessa_selo_ra1000_s_4c65050573.png" alt="RA1000" class="h-12 opacity-90">
+                    <span class="text-white font-medium text-lg">Excelência em atendimento</span>
+                </div>
+                <div class="text-white text-center md:text-right">
+                    <p class="font-bold text-lg mb-1">Precisa de ajuda?</p>
+                    <p class="opacity-90 hover:opacity-100 transition"><a href="https://wa.me/5511907425892" target="_blank" class="text-white">WhatsApp: +55 (11) 90742-5892</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="container mx-auto px-4 max-w-7xl">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                <div class="flex items-center gap-4">
+                    <img src="https://cms-cdn-sae1.remessaonline.com.br/Topazio_34c3af990b.webp" alt="Banco Topázio" class="h-6 opacity-70">
+                    <div class="text-xs max-w-xs leading-tight">
+                        Correspondente Cambial do <strong class="text-gray-300">Banco Topázio S.A.</strong>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-bold text-gray-500 uppercase">Segurança Digital</span>
+                    <img src="https://cms-cdn-sae1.remessaonline.com.br/SOC_2_1da06242f2.webp" alt="SOC 2" class="h-8 opacity-70">
+                </div>
+            </div>
+
+            <div class="text-xs space-y-4 font-light text-justify border-t border-gray-800 pt-8">
+                <p>A Remessa Online é uma plataforma digital da Bee Tech Serviços de Tecnologia Ltda., inscrita no CNPJ sob o nº 20.347.824/0001-66.</p>
+                <p><strong>Parceria de Seguros:</strong> Representante de Seguros: Coris Brasil Turismo Viagens e Assistência Internacional LTDA, CNPJ: 04.789.159/0001-98. Seguro garantido pela <strong>Chubb Seguros Brasil S.A.</strong> CNPJ: 03.502.099/0001-18 - Código SUSEP: 0651-3. Processo SUSEP: 15414.625787/2025-14.</p>
+                <div class="flex flex-col md:flex-row justify-between items-center mt-8 pt-8 border-t border-gray-800 gap-4">
+                    <p class="text-center md:text-left">Copyright © 2025 Remessa Online. Todos os direitos reservados.</p>
+                    <p class="text-center text-xs text-gray-600">Powered by <a href="https://www.modosegu.com" target="_blank" class="hover:text-white transition-colors">ModoSegu</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Floating WhatsApp Button -->
+    <a href="https://wa.me/5511996325612" target="_blank" class="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-full p-4 shadow-xl flex items-center gap-3 transition-all hover:-translate-y-1 group">
+        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        <span class="font-bold text-lg hidden md:block">Falar com Atendente</span>
+    </a>
+
+    <!-- Modal Checkout -->
+    <div id="checkout-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60] hidden opacity-0 pointer-events-none modal backdrop-blur-sm">
+         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col modal-content">
+            <div class="p-6 border-b flex justify-between items-center bg-gray-50">
+                <h2 class="text-xl font-bold text-[#000733]">Finalizar Compra</h2>
+                <button id="close-checkout-modal" class="text-2xl text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+             <div class="p-6 overflow-y-auto flex-grow">
+                 <form id="checkout-form" class="space-y-6">
+                     <input type="hidden" id="selected-plan-id"><input type="hidden" id="selected-plan-price-brl"><input type="hidden" id="selected-trip-days">
+                     <div class="p-5 bg-blue-50 rounded-xl border border-blue-100 text-sm">
+                         <h3 class="font-bold text-[#000733] mb-4 uppercase tracking-wide border-b border-blue-200 pb-2">Resumo do Pedido</h3>
+                         <div class="checkout-grid">
+                             <span class="checkout-label">Plano:</span> <span class="checkout-value" id="checkout-plan-name"></span>
+                             <span class="checkout-label">Destino:</span> <span class="checkout-value" id="checkout-destination-name"></span>
+                             <span class="checkout-label">Motivo:</span> <span class="checkout-value" id="checkout-category-name"></span>
+                             <span class="checkout-label">Período:</span> <span class="checkout-value" id="checkout-dates"></span>
+                             <span class="checkout-label">Passageiros:</span> <span class="checkout-value" id="checkout-passengers-count"></span>
+                             <span class="checkout-label">Cobertura Médica:</span> <span class="checkout-value" id="checkout-dmh"></span>
+                             <span class="checkout-label">Seguro Bagagem:</span> <span class="checkout-value" id="checkout-bagagem"></span>
+                             <span class="checkout-label">Bônus:</span> <span class="checkout-value text-green-600">Chip eSIM 2GB (Grátis)</span>
+                         </div>
+                         <div class="mt-4 pt-4 border-t border-blue-200 flex justify-between items-center">
+                             <span class="font-bold text-gray-700">Total a Pagar:</span>
+                             <span id="checkout-plan-price" class="font-bold text-2xl text-[#2244FF]"></span>
+                         </div>
+                         <p class="text-xs text-right text-blue-600 mt-1 font-medium">15% de desconto aplicado</p>
+                     </div>
+                     <div id="passenger-forms" class="space-y-4"></div>
+                     <div class="space-y-4">
+                         <h3 class="font-bold border-b pb-2 mt-6 text-[#000733]">Dados de Pagamento</h3>
+                         <div class="grid grid-cols-2 gap-4">
+                             <input type="text" id="cep" class="form-input text-sm" placeholder="CEP" required>
+                             <input type="text" id="address" class="form-input text-sm bg-gray-100" readonly>
+                             <input type="text" id="number" class="form-input text-sm" placeholder="Número" required>
+                             <input type="text" id="complement" class="form-input text-sm" placeholder="Complemento">
+                             <input type="text" id="neighborhood" class="form-input text-sm bg-gray-100" readonly>
+                             <input type="text" id="city" class="form-input text-sm bg-gray-100" readonly>
+                             <input type="text" id="state" class="form-input text-sm bg-gray-100" readonly>
+                         </div>
+                         <div class="grid grid-cols-2 gap-4">
+                             <input type="text" id="contact-name" class="form-input text-sm" placeholder="Nome Contato" required>
+                             <input type="tel" id="contact-phone" class="form-input text-sm" placeholder="Tel Contato" required>
+                         </div>
+                         <div class="p-3 border rounded bg-white"><div id="card-element"></div></div>
+                         <div id="card-errors" class="text-red-600 text-xs"></div>
+                         <div class="flex items-start gap-2 mt-2">
+                             <input type="checkbox" id="terms-check" required class="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                             <label for="terms-check" class="text-xs text-gray-600 leading-snug">Li e concordo com as <a href="condicoesgerais_coris2025.pdf" target="_blank" class="text-blue-600 underline font-bold">Condições Gerais</a>.</label>
+                         </div>
+                     </div>
+                     <div id="checkout-feedback" class="text-center text-sm text-red-600 hidden"></div>
+                     <button type="submit" id="submit-checkout-btn" class="btn btn-cta w-full py-4 text-lg shadow-lg mt-4">Confirmar Pagamento</button>
+                 </form>
+             </div>
+         </div>
+    </div>
+
+    <script>
+        const STRIPE_KEY = 'pk_live_51S0mcpFWoZCz7UUNSC4AQ34VHLEqOAmy0j84mMhhDfn0uILIYabgbxkCWZiaE70OLLhrRYdAHcFbNIaJScjlpvZB006GCqwN3x';
+        const supabaseClient = supabase.createClient('https://ujgnpbrreosmiujkedsa.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqZ25wYnJyZW9zbWl1amtlZHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4ODU3NDEsImV4cCI6MjA2NzQ2MTc0MX0.QY2xuq4lpZkI3Hi6gwRLi-0VUxuGoWS_LzfGtIJwRzE');
+        let stripe, cardElement, currentQuoteData;
+        
+        // Simulação da Base de Planos da Coris (60k a 1M)
+        const basePlans = [
+            { id: '17489', nome: 'CORIS MAX 60', basePrice: 200, dmh: 'USD 60.000', bagagem: 'USD 1.500', covid: 'USD 20.000' },
+            { id: '17900', nome: 'CORIS VIP 100', basePrice: 350, dmh: 'USD 100.000', bagagem: 'USD 2.000', covid: 'USD 30.000' },
+            { id: '18000', nome: 'CORIS VIP 250', basePrice: 500, dmh: 'USD 250.000', bagagem: 'USD 3.000', covid: 'USD 50.000' },
+            { id: '18100', nome: 'CORIS VIP 500', basePrice: 700, dmh: 'USD 500.000', bagagem: 'USD 5.000', covid: 'USD 100.000' },
+            { id: '18200', nome: 'CORIS MILLION', basePrice: 900, dmh: 'USD 1.000.000', bagagem: 'USD 5.000', covid: 'USD 100.000' }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(window.Stripe) { stripe = Stripe(STRIPE_KEY); const elements = stripe.elements(); cardElement = elements.create('card', { hidePostalCode: true }); }
+            
+            const dateConfig = { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", minDate: "today", locale: "pt" };
+            const fpDeparture = flatpickr("#departure-date", { ...dateConfig, onChange: (d) => fpReturn.set('minDate', d[0]) });
+            const fpReturn = flatpickr("#return-date", { ...dateConfig, onChange: () => updateDuration() });
+
+            // Lógica para Inputs de Idade
+            const passengersInput = document.getElementById('passengers');
+            const agesContainer = document.getElementById('ages-container');
+
+            passengersInput.addEventListener('input', function() {
+                const count = parseInt(this.value);
+                if (count < 1 || count > 6) return;
+                
+                agesContainer.innerHTML = '';
+                for(let i = 1; i <= count; i++) {
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <label class="text-xs text-gray-500 font-medium mb-1 block">Idade Pax ${i}</label>
+                        <input type="number" class="form-input h-10 text-sm passenger-age" min="0" max="99" placeholder="Anos" required data-pax="${i}">
+                    `;
+                    agesContainer.appendChild(div);
+                }
+            });
+
+            function updateDuration() {
+                const start = document.getElementById('departure-date').value;
+                const end = document.getElementById('return-date').value;
+                if(start && end) {
+                    const diff = Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1;
+                    if(diff > 0) { document.getElementById('duration-days').textContent = diff; document.getElementById('trip-duration').classList.remove('hidden'); }
+                }
+            }
+
+            document.getElementById('quote-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('get-quote-btn');
+                const feedback = document.getElementById('quote-feedback');
+                feedback.classList.add('hidden');
+                
+                // Coletar idades
+                const ageInputs = document.querySelectorAll('.passenger-age');
+                const ages = Array.from(ageInputs).map(input => parseInt(input.value));
+                
+                // Validação de Idade (Regra Coris)
+                // 86+ não comercializa
+                if (ages.some(age => age > 85)) {
+                    feedback.textContent = "Desculpe, não possuímos planos para passageiros acima de 85 anos neste canal.";
+                    feedback.classList.remove('hidden');
+                    return;
+                }
+
+                btn.disabled = true; document.getElementById('quote-btn-loader').classList.remove('hidden');
+                
+                const days = parseInt(document.getElementById('duration-days').textContent) || 7;
+                const passengers = parseInt(document.getElementById('passengers').value);
+                const destSelect = document.getElementById('destination');
+                const destValue = destSelect.value;
+                const destText = destSelect.options[destSelect.selectedIndex].text;
+                
+                const categorySelect = document.getElementById('trip-category');
+                const categoryValue = categorySelect.value;
+                const categoryText = categorySelect.options[categorySelect.selectedIndex].text;
+
+                const dateStartDisplay = fpDeparture.input.value;
+                const dateEndDisplay = fpReturn.input.value;
+
+                currentQuoteData = { days, passengers, destValue, destText, categoryValue, categoryText, dateStartDisplay, dateEndDisplay, ages,
+                    email: document.getElementById('user-email-quote').value, 
+                    name: document.getElementById('user-name-quote').value 
+                };
+
+                await supabaseClient.from('remessaonlinesioux_leads').insert({
+                    status: 'cotacao_iniciada', email_usuario: currentQuoteData.email, nome_usuario: currentQuoteData.name,
+                    destino_cotacao: destValue, passageiros_cotacao: passengers, dias_cotacao: days, origem: 'geral_15',
+                    metadata: { categoria_viagem: categoryValue, idades: ages } 
+                });
+
+                const container = document.getElementById('plans-container');
+                container.innerHTML = '';
+
+                basePlans.forEach(plan => {
+                    // Regra: Produtos > 100K não vendem para 81-85 anos
+                    const isHighValue = parseInt(plan.dmh.replace(/\D/g, '')) > 100000;
+                    const hasElderly = ages.some(age => age >= 81);
+                    if (isHighValue && hasElderly) return;
+
+                    // Cálculo com Agravos
+                    let totalPrice = 0;
+                    ages.forEach(age => {
+                        let multiplier = 1;
+                        if (age >= 66 && age <= 70) multiplier = 1.25; // 25% agravo
+                        if (age >= 71 && age <= 80) multiplier = 2.0;  // 100% agravo
+                        if (age >= 81 && age <= 85) multiplier = 3.0;  // 200% agravo
+                        
+                        // Preço base * Dias * Multiplicador de Idade
+                        totalPrice += (plan.basePrice * (days/5)) * multiplier;
+                    });
+
+                    // Aplica desconto de 15% (diferente da versão anterior que era 20%)
+                    const final = totalPrice * 0.85; 
+
+                    container.innerHTML += `
+                        <div class="plan-card p-6 flex flex-col justify-between animate-on-scroll is-visible rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-shadow">
+                            <div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-bold text-lg text-[#000733]">${plan.nome}</h3>
+                                    <span class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold">15% OFF</span>
+                                </div>
+                                <ul class="text-sm text-gray-600 space-y-3 mb-6">
+                                    <li>✓ DMH: <strong>${plan.dmh}</strong></li>
+                                    <li>✓ Bagagem: <strong>${plan.bagagem}</strong></li>
+                                    <li>✓ COVID-19: <strong>${plan.covid}</strong></li>
+                                    <li class="text-blue-600 font-bold">+ Chip Internet Grátis</li>
+                                    ${hasElderly ? '<li class="text-xs text-orange-600 mt-2">Inclui agravo de idade (+80 anos)</li>' : ''}
+                                </ul>
+                            </div>
+                            <div class="mt-4 border-t pt-4">
+                                <p class="text-xs text-gray-400 line-through">De: R$ ${(totalPrice).toFixed(2)}</p>
+                                <p class="text-3xl font-bold text-[#2244FF]">R$ ${final.toFixed(2)}</p>
+                                <button class="btn btn-cta w-full py-3 shadow-md" onclick="openCheckout('${plan.id}', ${final})">Selecionar</button>
+                            </div>
+                        </div>`;
+                });
+
+                if (container.innerHTML === '') {
+                     container.innerHTML = '<div class="col-span-3 text-center text-gray-500 py-8">Nenhum plano disponível para a combinação de idade e destino selecionada.</div>';
+                }
+
+                document.getElementById('quote-results').classList.remove('hidden');
+                document.getElementById('quote-results').scrollIntoView({ behavior: 'smooth' });
+                btn.disabled = false; document.getElementById('quote-btn-loader').classList.add('hidden');
+            });
+
+            window.openCheckout = (id, calculatedPrice) => {
+                const plan = basePlans.find(p => p.id === id);
+                
+                // Usa o preço já calculado com agravos
+                const price = calculatedPrice;
+
+                const modal = document.getElementById('checkout-modal');
+                modal.classList.remove('hidden', 'pointer-events-none');
+                setTimeout(() => modal.classList.add('opacity-100'), 10);
+                if(cardElement) cardElement.mount('#card-element');
+                
+                document.getElementById('checkout-plan-name').textContent = plan.nome;
+                document.getElementById('checkout-plan-price').textContent = `R$ ${price.toFixed(2)}`;
+                document.getElementById('checkout-destination-name').textContent = currentQuoteData.destText;
+                document.getElementById('checkout-category-name').textContent = currentQuoteData.categoryText;
+                document.getElementById('checkout-passengers-count').textContent = `${currentQuoteData.passengers} passageiro(s)`;
+                document.getElementById('checkout-dates').textContent = `${currentQuoteData.dateStartDisplay} a ${currentQuoteData.dateEndDisplay} (${currentQuoteData.days} dias)`;
+                document.getElementById('checkout-dmh').textContent = plan.dmh;
+                document.getElementById('checkout-bagagem').textContent = plan.bagagem;
+
+                document.getElementById('selected-plan-id').value = id;
+                document.getElementById('selected-plan-price-brl').value = price;
+
+                const paxContainer = document.getElementById('passenger-forms');
+                paxContainer.innerHTML = '';
+                for(let i=1; i<=currentQuoteData.passengers; i++) {
+                    // Adicionei campo de Data de Nascimento aqui
+                    paxContainer.innerHTML += `
+                    <div class="border p-4 rounded-lg mb-3 bg-gray-50">
+                        <h4 class="text-xs font-bold text-gray-500 mb-3 uppercase">Passageiro ${i} (Idade: ${currentQuoteData.ages[i-1]})</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            <input id="pax-${i}-nome" placeholder="Nome Completo" class="form-input text-sm" required>
+                            <input id="pax-${i}-cpf" placeholder="CPF" class="form-input text-sm" required>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                             <input type="date" id="pax-${i}-nasc" class="form-input text-sm" required title="Data de Nascimento">
+                        </div>
+                    </div>`;
+                }
+            };
+
+            document.getElementById('close-checkout-modal').onclick = () => {
+                const modal = document.getElementById('checkout-modal');
+                modal.classList.remove('opacity-100');
+                setTimeout(() => modal.classList.add('hidden', 'pointer-events-none'), 300);
+            };
+
+            document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('submit-checkout-btn');
+                btn.disabled = true; btn.textContent = 'Processando...';
+
+                const passengers = [];
+                for(let i=1; i<=currentQuoteData.passengers; i++) {
+                    passengers.push({ 
+                        nome: document.getElementById(`pax-${i}-nome`).value, 
+                        cpf: document.getElementById(`pax-${i}-cpf`).value,
+                        dtnascimento: document.getElementById(`pax-${i}-nasc`).value // Coletando Data Nascimento
+                    });
+                }
+
+                try {
+                    const { paymentMethod, error } = await stripe.createPaymentMethod({ type: 'card', card: cardElement, billing_details: { name: passengers[0].nome, email: currentQuoteData.email } });
+                    if(error) throw error;
+
+                    const response = await fetch('/.netlify/functions/process-payment', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            paymentMethodId: paymentMethod.id,
+                            planId: document.getElementById('selected-plan-id').value,
+                            amountBRL: parseFloat(document.getElementById('selected-plan-price-brl').value),
+                            days: currentQuoteData.days,
+                            destination: currentQuoteData.destValue,
+                            category: currentQuoteData.categoryValue, 
+                            planName: document.getElementById('checkout-plan-name').textContent,
+                            passengers: passengers,
+                            comprador: { 
+                                nome: passengers[0].nome, email: currentQuoteData.email, cpf: passengers[0].cpf,
+                                endereco: { cep: document.getElementById('cep').value, logradouro: document.getElementById('address').value, numero: document.getElementById('number').value, uf: document.getElementById('state').value, cidade: document.getElementById('city').value, bairro: document.getElementById('neighborhood').value }
+                            },
+                            contactName: document.getElementById('contact-name').value,
+                            contactPhone: document.getElementById('contact-phone').value
+                        })
+                    });
+
+                    if(!response.ok) throw new Error("Falha no pagamento. Verifique os dados.");
+                    
+                    document.getElementById('checkout-modal').click();
+                    alert("Parabéns! Contratação Efetuada, você receberá a apólice e as demais informações no e-mail fornecido.");
+                    location.reload();
+
+                } catch (err) {
+                     const feedback = document.getElementById('checkout-feedback');
+                     feedback.innerHTML = `
+                        <div class="bg-red-50 p-4 rounded-xl border border-red-200 mb-4">
+                            <div class="flex items-center justify-center text-red-600 mb-2">
+                                <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <h4 class="font-bold text-red-800 text-lg mb-1">Pagamento Recusado</h4>
+                            <p class="text-sm text-red-600 mb-4">${err.message || 'Não foi possível processar o cartão.'}</p>
+                            <a href="https://wa.me/5511996325612?text=Olá, meu pagamento do Seguro Coris foi recusado (Erro: ${err.message}). Podem me ajudar?" target="_blank" class="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 px-4 rounded-lg transition">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                Falar com Atendente
+                            </a>
+                        </div>
+                    `;
+                    feedback.classList.remove('hidden');
+                } finally {
+                    btn.disabled = false; btn.textContent = 'Confirmar Pagamento';
+                }
+            });
+
+            if(typeof IMask !== 'undefined') IMask(document.getElementById('cep'), {mask: '00000-000'});
+            document.getElementById('cep').addEventListener('input', async (e) => {
+                if(e.target.value.replace(/\D/g,'').length === 8) {
+                    try {
+                        const res = await fetch(`https://viacep.com.br/ws/${e.target.value.replace(/\D/g,'')}/json/`);
+                        const data = await res.json();
+                        if(!data.erro) {
+                            document.getElementById('address').value = data.logradouro;
+                            document.getElementById('neighborhood').value = data.bairro;
+                            document.getElementById('city').value = data.localidade;
+                            document.getElementById('state').value = data.uf;
+                        }
+                    } catch(e){}
+                }
+            });
+
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('is-visible'); });
+            }, { threshold: 0.1 });
+            document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+</html>
