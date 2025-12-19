@@ -4,59 +4,88 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seguro Viagem Coris | Parceria Remessa Online</title>
-    <!-- CORREÇÃO 1: Favicon local ou Data URI para evitar erro CORS -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✈️</text></svg>">
+    
+    <!-- CORREÇÃO CORS: Favicon em Base64 (Ícone Azul da Marca) -->
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzIyNDRGRiIvPjxwYXRoIGQ9Ik0zMCA1MCBMNTAgNzAgTDcwIDMwIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEwIiBmaWxsPSJub25lIi8+PC9zdmc+">
     
     <!-- Dependências -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://js.stripe.com/v3/"></script>
+    
+    <!-- Flatpickr (Calendário) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+    
+    <!-- Máscaras -->
     <script src="https://unpkg.com/imask"></script>
+    
+    <!-- Fontes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
         html { scroll-behavior: smooth; }
-        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; color: #333; line-height: 1.5; }
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; color: #333; line-height: 1.5; background-color: #fff; }
+        
         :root {
-            --color-remessa-main: #2244FF;
+            --color-remessa-main: #2244FF; /* Azul Institucional */
             --color-remessa-dark: #00158A;
             --color-remessa-bg-dark: #000733;
             --color-text-title: #000733;
             --color-border: #ced1d5;
             --color-bg-light: #f1f2f3;
         }
+
+        /* Botões e Interatividade */
         .btn { border-radius: 32px; padding: 12px 24px; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
         .btn-cta { background-color: var(--color-remessa-main); color: white; border: 1px solid var(--color-remessa-main); }
         .btn-cta:hover:not(:disabled) { background-color: var(--color-remessa-dark); border-color: var(--color-remessa-dark); }
+        
         .btn-secondary { background-color: transparent; color: var(--color-remessa-main); border: 1px solid var(--color-remessa-main); }
         .btn-secondary:hover { background-color: rgba(34, 68, 255, 0.05); }
         
         header { position: sticky; top: 0; z-index: 50; background: white; box-shadow: 0 3px 14px rgba(0,0,0,0.08); min-height: 80px; display: flex; align-items: center;}
-        .form-input, .form-select { border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 16px; width: 100%; background: var(--color-bg-light); color: var(--color-text-title); height: 48px; }
+        
+        /* Formulários */
+        .form-input, .form-select { border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 16px; width: 100%; background: var(--color-bg-light); color: var(--color-text-title); height: 48px; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus { border-color: var(--color-remessa-main); background: white; }
         .flatpickr-input[readonly] { background-color: var(--color-bg-light); cursor: pointer; }
-        .benefit-pdf-card { padding: 1.5rem; border: 1px solid #E0E0E6; border-radius: 12px; height: 100%; text-align: left; background: white; transition: transform 0.3s ease; }
-        .benefit-pdf-card:hover { transform: translateY(-5px); }
+        
+        /* Cards e Elementos */
+        .benefit-pdf-card { padding: 1.5rem; border: 1px solid #E0E0E6; border-radius: 12px; height: 100%; text-align: left; background: white; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .benefit-pdf-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); border-color: var(--color-remessa-main); }
+        
         .plan-card { border: 1px solid var(--color-border); border-radius: 12px; transition: all 0.2s; background: white; }
         .plan-card:hover { border-color: var(--color-remessa-main); box-shadow: 0 4px 18px rgba(0,0,0,0.08); }
+        
         .loader { border: 3px solid #e0e0e0; border-top: 3px solid var(--color-remessa-main); border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         .modal { transition: opacity 0.3s; }
         .animate-on-scroll { opacity: 0; transform: translateY(20px); transition: 0.6s; }
         .animate-on-scroll.is-visible { opacity: 1; transform: translateY(0); }
+        
+        /* Seção Hero Geral */
         .horizontal-section { background-color: var(--color-remessa-main); color: white; padding: 80px 0; }
+        
         .StripeElement { background: white; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; }
-        .step-card { position: relative; padding-left: 24px; border-left: 2px solid var(--color-remessa-main); }
+        
+        /* Grid Checkout */
         .checkout-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px; }
         .checkout-label { color: #676c72; font-weight: 500; }
         .checkout-value { color: #000733; font-weight: 600; text-align: right; }
+        
+        .step-card { position: relative; padding-left: 24px; border-left: 2px solid var(--color-remessa-main); }
     </style>
 </head>
-<body class="bg-white text-gray-800 font-inter">
+<body class="text-gray-800 font-inter">
 
+    <!-- Header -->
     <header>
         <nav class="container mx-auto px-4 max-w-7xl flex items-center justify-between">
             <div class="flex items-center space-x-4">
@@ -79,6 +108,7 @@
     </header>
 
     <main>
+        <!-- Hero Section -->
         <section class="horizontal-section relative overflow-hidden">
             <div class="container mx-auto px-4 max-w-7xl relative z-10">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -90,7 +120,7 @@
                             Confie em quem prioriza você
                         </h1>
                         <p class="text-lg text-white/90 font-light mb-10 max-w-lg">
-                            Seguro Viagem Coris com <strong>15% OFF</strong> e <strong>2GB de internet grátis</strong>. Segurança completa para sua viagem internacional.
+                            Seguro Viagem Coris com <strong>15% OFF</strong> e <strong>2GB de internet grátis</strong> (eSIM). A segurança que você já conhece, agora protegendo sua viagem.
                         </p>
                         <div class="flex flex-col sm:flex-row gap-4">
                             <a href="#cotacao" class="btn bg-white text-[#2244FF] text-lg px-8 py-3 shadow-lg hover:bg-gray-100 text-center">
@@ -102,23 +132,31 @@
                         </div>
                     </div>
                     <div class="relative h-full flex justify-center md:justify-end animate-on-scroll">
-                        <img src="https://cms-cdn-sae1.remessaonline.com.br/rubinho_carrossel_b0659d6899.webp" alt="Rubinho" class="w-full max-w-[500px] drop-shadow-2xl object-contain">
+                        <!-- Foto do Rubinho atualizada (rubinho1) com bordas arredondadas -->
+                        <img src="rubinho1.webp" alt="Rubinho Barrichello" class="w-full max-w-[500px] drop-shadow-2xl object-contain rounded-3xl">
                     </div>
                 </div>
             </div>
         </section>
 
+        <!-- Cotação -->
         <section id="cotacao" class="py-20 bg-[#f9fafb] relative -mt-10 z-20">
              <div class="container mx-auto px-4 max-w-4xl">
                  <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 animate-on-scroll">
                      <div class="text-center mb-10">
                         <h2 class="text-3xl font-bold text-[#000733] mb-3">Simule seu Seguro Viagem</h2>
-                        <p class="text-[#676c72]">Preencha os dados para ver os planos com <strong>15% de desconto</strong>.</p>
+                        <p class="text-[#676c72]">Preencha os dados abaixo para visualizar os planos com desconto aplicado.</p>
                      </div>
                      <form id="quote-form" class="space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div><label class="block text-sm font-semibold mb-2 text-gray-700">Seu Nome</label><input type="text" id="user-name-quote" class="form-input" placeholder="Nome completo" required></div>
-                            <div><label class="block text-sm font-semibold mb-2 text-gray-700">Seu E-mail</label><input type="email" id="user-email-quote" class="form-input" placeholder="seu@email.com" required></div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Seu Nome</label>
+                                <input type="text" id="user-name-quote" class="form-input" placeholder="Nome completo" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Seu E-mail</label>
+                                <input type="email" id="user-email-quote" class="form-input" placeholder="seu@email.com" required>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-sm font-semibold mb-2 text-gray-700">Destino Principal</label>
@@ -131,36 +169,52 @@
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-6">
-                            <div><label class="block text-sm font-semibold mb-2 text-gray-700">Data de Ida</label><input type="text" id="departure-date" class="form-input flatpickr-input" placeholder="DD/MM/AAAA" readonly></div>
-                            <div><label class="block text-sm font-semibold mb-2 text-gray-700">Data de Volta</label><input type="text" id="return-date" class="form-input flatpickr-input" placeholder="DD/MM/AAAA" readonly></div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Data de Ida</label>
+                                <input type="text" id="departure-date" class="form-input flatpickr-input" placeholder="DD/MM/AAAA" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 text-gray-700">Data de Volta</label>
+                                <input type="text" id="return-date" class="form-input flatpickr-input" placeholder="DD/MM/AAAA" readonly>
+                            </div>
                         </div>
-                        <p id="trip-duration" class="text-sm text-center text-gray-600 font-medium hidden bg-blue-50 py-3 rounded-lg border border-blue-100">Duração: <span id="duration-days" class="font-bold text-blue-600">0</span> dias</p>
+                        <p id="trip-duration" class="text-sm text-center text-gray-600 font-medium hidden bg-blue-50 py-3 rounded-lg border border-blue-100">Duração da viagem: <span id="duration-days" class="font-bold text-blue-600">0</span> dias</p>
                         <div>
                             <label class="block text-sm font-semibold mb-2 text-gray-700">Passageiros</label>
-                            <div class="relative"><input type="number" id="passengers" min="1" max="6" value="1" class="form-input pr-12" required><span class="absolute right-4 top-3 text-gray-500 text-sm pointer-events-none">Pessoas</span></div>
+                            <div class="relative">
+                                <input type="number" id="passengers" min="1" max="6" value="1" class="form-input pr-12" required>
+                                <span class="absolute right-4 top-3 text-gray-500 text-sm pointer-events-none font-medium">Pessoas</span>
+                            </div>
                         </div>
-                        <div id="quote-feedback" class="text-center text-sm hidden p-3 bg-red-50 text-red-600 rounded"></div>
-                        <div class="pt-6 text-center"><button type="submit" id="get-quote-btn" class="btn btn-cta text-lg w-full md:w-auto min-w-[280px] py-4 shadow-lg hover:-translate-y-0.5 transition-transform"><span id="quote-btn-text">Ver Planos e Preços</span><div id="quote-btn-loader" class="loader ml-3 hidden"></div></button></div>
+                        <div id="quote-feedback" class="text-center text-sm hidden"></div>
+                        <div class="pt-6 text-center">
+                            <button type="submit" id="get-quote-btn" class="btn btn-cta text-lg w-full md:w-auto min-w-[280px] py-4 shadow-lg hover:-translate-y-0.5 transition-transform">
+                                <span id="quote-btn-text">Ver Planos e Preços</span>
+                                <div id="quote-btn-loader" class="loader ml-3 hidden border-t-white"></div>
+                            </button>
+                        </div>
                      </form>
                 </div>
             </div>
         </section>
 
+        <!-- Resultados -->
         <section id="quote-results" class="py-16 bg-white hidden">
              <div class="container mx-auto px-4 max-w-6xl">
-                 <h2 class="text-3xl font-bold text-[#000733] text-center mb-4">Planos Disponíveis (15% OFF)</h2>
+                 <h2 class="text-3xl font-bold text-[#000733] text-center mb-4">Planos Recomendados para Você</h2>
+                 <p class="text-center text-gray-500 mb-12 max-w-2xl mx-auto">O desconto de 15% já está aplicado nos valores abaixo.</p>
                  <div id="plans-container" class="grid grid-cols-1 md:grid-cols-3 gap-8"></div>
             </div>
         </section>
 
-        <!-- Benefícios, FAQ e Footer mantidos identicos ao original, apenas o script é alterado -->
+        <!-- Benefícios -->
         <section id="beneficios" class="py-20 bg-white text-center">
             <div class="container mx-auto px-4 max-w-6xl">
                 <h2 class="text-3xl md:text-4xl font-bold text-[#000733] mb-12 animate-on-scroll">Por que escolher a Coris?</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                      <div class="benefit-pdf-card animate-on-scroll group">
                         <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4 text-[#2244FF]"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></div>
-                        <h3 class="text-lg font-bold mb-2 text-[#000733]">Cobertura Completa</h3><p class="text-sm text-gray-500">Despesas médicas, hospitalares e odontológicas.</p>
+                        <h3 class="text-lg font-bold mb-2 text-[#000733]">Cobertura Completa</h3><p class="text-sm text-gray-500">Assistência médica, extravio de bagagem e cancelamento.</p>
                     </div>
                      <div class="benefit-pdf-card animate-on-scroll group">
                        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4 text-[#2244FF]"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></div>
@@ -185,16 +239,20 @@
                          <h2 class="text-3xl font-bold text-[#000733] mb-6">Processo Simplificado</h2>
                          <div class="space-y-6">
                             <div class="step-card">
-                                <h4 class="font-bold text-gray-800">1. Simulação</h4>
-                                <p class="text-sm text-gray-600">Preencha os dados da viagem.</p>
+                                <h4 class="font-bold text-lg text-[#000733] mb-1">1. Faça sua cotação</h4>
+                                <p class="text-gray-600 text-sm">Informe o destino, as datas e o número de passageiros no formulário.</p>
                             </div>
                             <div class="step-card">
-                                <h4 class="font-bold text-gray-800">2. Contratação</h4>
-                                <p class="text-sm text-gray-600">Escolha o plano e pague com segurança.</p>
+                                <h4 class="font-bold text-lg text-[#000733] mb-1">2. Escolha o plano</h4>
+                                <p class="text-gray-600 text-sm">Compare as opções com desconto e escolha a ideal.</p>
                             </div>
                             <div class="step-card">
-                                <h4 class="font-bold text-gray-800">3. Conectividade</h4>
-                                <p class="text-sm text-gray-600">Receba seu QR Code do eSIM por e-mail.</p>
+                                <h4 class="font-bold text-lg text-[#000733] mb-1">3. Pagamento Seguro</h4>
+                                <p class="text-gray-600 text-sm">Pague com cartão de crédito em ambiente seguro.</p>
+                            </div>
+                            <div class="step-card">
+                                <h4 class="font-bold text-lg text-[#000733] mb-1">4. Viaje Protegido</h4>
+                                <p class="text-gray-600 text-sm">Sua apólice e o QR Code do eSIM chegam instantaneamente no seu e-mail.</p>
                             </div>
                         </div>
                     </div>
@@ -208,6 +266,14 @@
                             <div class="bg-white p-5 rounded-lg border border-gray-200">
                                 <h4 class="font-bold text-gray-800 text-sm">Como funciona o eSIM grátis?</h4>
                                 <p class="text-sm text-gray-600 mt-1">É um chip virtual. Você escaneia um QR Code e ativa a internet.</p>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-gray-800 text-sm">Para quem é esta oferta?</h4>
+                                <p class="text-sm text-gray-600 mt-1">Exclusiva para clientes Remessa Online.</p>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-gray-800 text-sm">O seguro cobre COVID-19?</h4>
+                                <p class="text-sm text-gray-600 mt-1">Sim! Todos os nossos planos possuem cobertura para despesas médicas por COVID-19.</p>
                             </div>
                         </div>
                     </div>
@@ -234,7 +300,9 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                 <div class="flex items-center gap-4">
                     <img src="https://cms-cdn-sae1.remessaonline.com.br/Topazio_34c3af990b.webp" alt="Banco Topázio" class="h-6 opacity-70">
-                    <div class="text-xs max-w-xs leading-tight">Correspondente Cambial do <strong class="text-gray-300">Banco Topázio S.A.</strong></div>
+                    <div class="text-xs max-w-xs leading-tight">
+                        Correspondente Cambial do <strong class="text-gray-300">Banco Topázio S.A.</strong>
+                    </div>
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="text-xs font-bold text-gray-500 uppercase">Segurança Digital</span>
@@ -244,9 +312,9 @@
 
             <div class="text-xs space-y-4 font-light text-justify border-t border-gray-800 pt-8">
                 <p>A Remessa Online é uma plataforma digital da Bee Tech Serviços de Tecnologia Ltda., inscrita no CNPJ sob o nº 20.347.824/0001-66.</p>
-                <p><strong>Parceria de Seguros:</strong> Representante de Seguros: Coris Brasil Turismo Viagens e Assistência Internacional LTDA, CNPJ: 04.789.159/0001-98. Seguro garantido pela <strong>Chubb Seguros Brasil S.A.</strong></p>
+                <p><strong>Parceria de Seguros:</strong> Representante de Seguros: Coris Brasil Turismo Viagens e Assistência Internacional LTDA, CNPJ: 04.789.159/0001-98. Seguro garantido pela <strong>Chubb Seguros Brasil S.A.</strong> CNPJ: 03.502.099/0001-18 - Código SUSEP: 0651-3. Processo SUSEP: 15414.625787/2025-14.</p>
                 <div class="flex flex-col md:flex-row justify-between items-center mt-8 pt-8 border-t border-gray-800 gap-4">
-                    <p class="text-center md:text-left">Copyright © 2025 Remessa Online.</p>
+                    <p class="text-center md:text-left">Copyright © 2025 Remessa Online. Todos os direitos reservados.</p>
                     <p class="text-center text-xs text-gray-600">Powered by <a href="https://www.modosegu.com" target="_blank" class="hover:text-white transition-colors">ModoSegu</a></p>
                 </div>
             </div>
@@ -256,7 +324,10 @@
     <!-- Modal Checkout -->
     <div id="checkout-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60] hidden opacity-0 pointer-events-none modal backdrop-blur-sm">
          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col modal-content">
-            <div class="p-6 border-b flex justify-between items-center bg-gray-50"><h2 class="text-xl font-bold text-[#000733]">Finalizar Compra</h2><button id="close-checkout-modal" class="text-2xl text-gray-400 hover:text-gray-600">&times;</button></div>
+            <div class="p-6 border-b flex justify-between items-center bg-gray-50">
+                <h2 class="text-xl font-bold text-[#000733]">Finalizar Compra</h2>
+                <button id="close-checkout-modal" class="text-2xl text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
              <div class="p-6 overflow-y-auto flex-grow">
                  <form id="checkout-form" class="space-y-6">
                      <input type="hidden" id="selected-plan-id"><input type="hidden" id="selected-plan-price-brl"><input type="hidden" id="selected-trip-days">
@@ -310,7 +381,7 @@
     <script>
         const STRIPE_KEY = 'pk_live_51S0mcpFWoZCz7UUNSC4AQ34VHLEqOAmy0j84mMhhDfn0uILIYabgbxkCWZiaE70OLLhrRYdAHcFbNIaJScjlpvZB006GCqwN3x';
         const supabaseClient = supabase.createClient('https://ujgnpbrreosmiujkedsa.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqZ25wYnJyZW9zbWl1amtlZHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4ODU3NDEsImV4cCI6MjA2NzQ2MTc0MX0.QY2xuq4lpZkI3Hi6gwRLi-0VUxuGoWS_LzfGtIJwRzE');
-        let stripe, cardElement, currentQuoteData = {};
+        let stripe, cardElement, currentQuoteData;
         
         const plans = [
             { id: '17829', nome: 'CORIS BASIC 30', basePrice: 150, dmh: 'USD 30.000', bagagem: 'USD 1.000', covid: 'USD 10.000' },
@@ -337,11 +408,7 @@
             document.getElementById('quote-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = document.getElementById('get-quote-btn');
-                const feedback = document.getElementById('quote-feedback');
-                
-                btn.disabled = true; 
-                document.getElementById('quote-btn-loader').classList.remove('hidden');
-                feedback.classList.add('hidden');
+                btn.disabled = true; document.getElementById('quote-btn-loader').classList.remove('hidden');
                 
                 const days = parseInt(document.getElementById('duration-days').textContent) || 7;
                 const passengers = parseInt(document.getElementById('passengers').value);
@@ -351,87 +418,49 @@
                 const dateStartDisplay = fpDeparture.input.value;
                 const dateEndDisplay = fpReturn.input.value;
 
-                currentQuoteData = { 
-                    days, 
-                    passengers, 
-                    destValue, 
-                    destText, 
-                    dateStartDisplay, 
-                    dateEndDisplay,
+                currentQuoteData = { days, passengers, destValue, destText, dateStartDisplay, dateEndDisplay,
                     email: document.getElementById('user-email-quote').value, 
-                    name: document.getElementById('user-name-quote').value,
-                    leadId: null 
+                    name: document.getElementById('user-name-quote').value 
                 };
 
-                try {
-                    // CORREÇÃO 2: Capturar retorno do Supabase (data) para pegar o ID
-                    const { data, error } = await supabaseClient
-                        .from('remessaonlinesioux_leads')
-                        .insert([{
-                            status: 'cotacao_iniciada', 
-                            email_usuario: currentQuoteData.email, 
-                            nome_usuario: currentQuoteData.name,
-                            destino_cotacao: destValue, 
-                            passageiros_cotacao: passengers, 
-                            dias_cotacao: days, 
-                            origem: 'geral_15'
-                        }])
-                        .select(); // IMPORTANTE: .select() retorna os dados inseridos
+                await supabaseClient.from('remessaonlinesioux_leads').insert({
+                    status: 'cotacao_iniciada', email_usuario: currentQuoteData.email, nome_usuario: currentQuoteData.name,
+                    destino_cotacao: destValue, passageiros_cotacao: passengers, dias_cotacao: days, origem: 'geral_15'
+                });
 
-                    if (error) throw error;
-                    
-                    if (data && data.length > 0) {
-                        currentQuoteData.leadId = data[0].id;
-                        console.log("Lead criado com ID:", currentQuoteData.leadId);
-                    } else {
-                        throw new Error("Não foi possível gerar o ID da cotação.");
-                    }
-
-                    const container = document.getElementById('plans-container');
-                    container.innerHTML = '';
-                    plans.forEach(plan => {
-                        const total = plan.basePrice * passengers * (days/5);
-                        const final = total * 0.85;
-                        container.innerHTML += `
-                            <div class="plan-card p-6 flex flex-col justify-between animate-on-scroll is-visible rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-shadow">
-                                <div>
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="font-bold text-lg text-[#000733]">${plan.nome}</h3>
-                                        <span class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold">15% OFF</span>
-                                    </div>
-                                    <ul class="text-sm text-gray-600 space-y-3 mb-6">
-                                        <li>✓ DMH: <strong>${plan.dmh}</strong></li>
-                                        <li>✓ Bagagem: <strong>${plan.bagagem}</strong></li>
-                                        <li>✓ COVID-19: <strong>${plan.covid}</strong></li>
-                                        <li class="text-blue-600 font-bold">+ Chip Internet Grátis</li>
-                                    </ul>
+                const container = document.getElementById('plans-container');
+                container.innerHTML = '';
+                plans.forEach(plan => {
+                    const total = plan.basePrice * passengers * (days/5);
+                    const final = total * 0.85; // 15% OFF
+                    container.innerHTML += `
+                        <div class="plan-card p-6 flex flex-col justify-between animate-on-scroll is-visible rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-shadow">
+                            <div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-bold text-lg text-[#000733]">${plan.nome}</h3>
+                                    <span class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold">15% OFF</span>
                                 </div>
-                                <div class="mt-4 border-t pt-4">
-                                    <p class="text-xs text-gray-400 line-through">De: R$ ${total.toFixed(2)}</p>
-                                    <p class="text-3xl font-bold text-[#2244FF]">R$ ${final.toFixed(2)}</p>
-                                    <button class="btn btn-cta w-full py-3 shadow-md" onclick="openCheckout('${plan.id}')">Selecionar</button>
-                                </div>
-                            </div>`;
-                    });
+                                <ul class="text-sm text-gray-600 space-y-3 mb-6">
+                                    <li>✓ DMH: <strong>${plan.dmh}</strong></li>
+                                    <li>✓ Bagagem: <strong>${plan.bagagem}</strong></li>
+                                    <li>✓ COVID-19: <strong>${plan.covid}</strong></li>
+                                    <li class="text-blue-600 font-bold">+ Chip Internet Grátis</li>
+                                </ul>
+                            </div>
+                            <div class="mt-4 border-t pt-4">
+                                <p class="text-xs text-gray-400 line-through">De: R$ ${total.toFixed(2)}</p>
+                                <p class="text-3xl font-bold text-[#2244FF]">R$ ${final.toFixed(2)}</p>
+                                <button class="btn btn-cta w-full py-3 shadow-md" onclick="openCheckout('${plan.id}')">Selecionar</button>
+                            </div>
+                        </div>`;
+                });
 
-                    document.getElementById('quote-results').classList.remove('hidden');
-                    document.getElementById('quote-results').scrollIntoView({ behavior: 'smooth' });
-
-                } catch (error) {
-                    console.error("Erro Supabase:", error);
-                    feedback.textContent = `Erro ao salvar cotação: ${error.message || error.code || 'Erro desconhecido'}. Verifique os dados.`;
-                    feedback.classList.remove('hidden');
-                } finally {
-                    btn.disabled = false; 
-                    document.getElementById('quote-btn-loader').classList.add('hidden');
-                }
+                document.getElementById('quote-results').classList.remove('hidden');
+                document.getElementById('quote-results').scrollIntoView({ behavior: 'smooth' });
+                btn.disabled = false; document.getElementById('quote-btn-loader').classList.add('hidden');
             });
 
             window.openCheckout = (id) => {
-                if (!currentQuoteData.leadId) {
-                    alert("Erro: ID da cotação não encontrado. Por favor, faça a cotação novamente.");
-                    return;
-                }
                 const plan = plans.find(p => p.id === id);
                 const price = (plan.basePrice * currentQuoteData.passengers * (currentQuoteData.days/5)) * 0.85;
 
@@ -467,11 +496,7 @@
             document.getElementById('checkout-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = document.getElementById('submit-checkout-btn');
-                const feedback = document.getElementById('checkout-feedback');
-                
-                btn.disabled = true; 
-                btn.textContent = 'Processando...';
-                feedback.classList.add('hidden');
+                btn.disabled = true; btn.textContent = 'Processando...';
 
                 const passengers = [];
                 for(let i=1; i<=currentQuoteData.passengers; i++) {
@@ -479,20 +504,12 @@
                 }
 
                 try {
-                    // 1. Criar Token Stripe
-                    const { paymentMethod, error } = await stripe.createPaymentMethod({ 
-                        type: 'card', 
-                        card: cardElement, 
-                        billing_details: { name: passengers[0].nome, email: currentQuoteData.email } 
-                    });
-                    
-                    if(error) throw new Error(error.message);
+                    const { paymentMethod, error } = await stripe.createPaymentMethod({ type: 'card', card: cardElement, billing_details: { name: passengers[0].nome, email: currentQuoteData.email } });
+                    if(error) throw error;
 
-                    // CORREÇÃO 3: Enviar leadId para o backend
                     const response = await fetch('/.netlify/functions/process-payment', {
                         method: 'POST',
                         body: JSON.stringify({
-                            leadId: currentQuoteData.leadId, // ID CRÍTICO AQUI
                             paymentMethodId: paymentMethod.id,
                             planId: document.getElementById('selected-plan-id').value,
                             amountBRL: parseFloat(document.getElementById('selected-plan-price-brl').value),
@@ -501,36 +518,23 @@
                             planName: document.getElementById('checkout-plan-name').textContent,
                             passengers: passengers,
                             comprador: { 
-                                nome: passengers[0].nome, 
-                                email: currentQuoteData.email, 
-                                cpf: passengers[0].cpf,
-                                endereco: { 
-                                    cep: document.getElementById('cep').value, 
-                                    logradouro: document.getElementById('address').value, 
-                                    numero: document.getElementById('number').value, 
-                                    uf: document.getElementById('state').value, 
-                                    cidade: document.getElementById('city').value, 
-                                    bairro: document.getElementById('neighborhood').value 
-                                }
+                                nome: passengers[0].nome, email: currentQuoteData.email, cpf: passengers[0].cpf,
+                                endereco: { cep: document.getElementById('cep').value, logradouro: document.getElementById('address').value, numero: document.getElementById('number').value, uf: document.getElementById('state').value, cidade: document.getElementById('city').value, bairro: document.getElementById('neighborhood').value }
                             },
                             contactName: document.getElementById('contact-name').value,
                             contactPhone: document.getElementById('contact-phone').value
                         })
                     });
 
-                    if(!response.ok) {
-                        const errData = await response.json();
-                        throw new Error(errData.error || "Erro no servidor de pagamento.");
-                    }
+                    if(!response.ok) throw new Error("Falha no pagamento. Verifique os dados.");
                     
                     document.getElementById('checkout-modal').click();
-                    alert("Pagamento Aprovado! Voucher enviado por e-mail.");
+                    alert("Pagamento Aprovado! Seu voucher e eSIM serão enviados por e-mail.");
                     location.reload();
 
                 } catch (err) {
-                    console.error("Erro Checkout:", err);
-                    feedback.textContent = err.message;
-                    feedback.classList.remove('hidden');
+                    document.getElementById('checkout-feedback').textContent = err.message;
+                    document.getElementById('checkout-feedback').classList.remove('hidden');
                 } finally {
                     btn.disabled = false; btn.textContent = 'Confirmar Pagamento';
                 }
